@@ -1,4 +1,4 @@
-package protocol
+package hj212
 
 import (
 	"encoding/binary"
@@ -15,18 +15,18 @@ type Packet struct {
 }
 
 // Serialize 获取数据包 buff
-func (this *Packet) Serialize() []byte {
-	return this.buff
+func (p *Packet) Serialize() []byte {
+	return p.buff
 }
 
 // GetLength 获取数据包长度
-func (this *Packet) GetLength() uint32 {
-	return binary.BigEndian.Uint32(this.buff[0:4])
+func (p *Packet) GetLength() uint32 {
+	return binary.BigEndian.Uint32(p.buff[0:4])
 }
 
 // GetBody 获取数据包体
-func (this *Packet) GetBody() []byte {
-	return this.buff[4:]
+func (p *Packet) GetBody() []byte {
+	return p.buff[4:]
 }
 
 // NewPacket 创建一个新的数据包
@@ -49,7 +49,7 @@ type Protocol struct {
 }
 
 // ReadPacket 读取数据
-func (this *Protocol) ReadPacket(conn *net.TCPConn) (gotcp.Packet, error) {
+func (p *Protocol) ReadPacket(conn *net.TCPConn) (gotcp.Packet, error) {
 	var (
 		lengthBytes []byte = make([]byte, 4)
 		length      uint32

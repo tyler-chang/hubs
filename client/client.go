@@ -1,36 +1,46 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"time"
+
+	"github.com/tyler-chang/hubs"
 )
 
-func ping() {
-	log.Println("start ping...")
+func main() {
+	// 解析服务器
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:8989")
+	checkError(err)
+	// 连接服务器
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	checkError(err)
 
-	conn, err := net.Dial("tcp", ":8888")
-	if err != nil {
-		log.Println("dial error:", err)
-		return
+	p := &protocol.Protocol{}
+
+	log.Println(p)
+
+	// ping <--> pong
+	for i := 0; i < 3; i++ {
+		// write
+		conn.Write(protocol.NewPacket([]byte("hello"), false).Serialize())
+
+		// read
+		p, err := p.ReadPacket(conn)
+		if err == nil {
+			packet := p.(*protocol.Packet)
+			fmt.Printf("Server reply:[%v] [%v]\n", packet.GetLength(), string(packet.GetBody()))
+		}
+
+		time.Sleep(2 * time.Second)
 	}
 
-	defer conn.Close()
-
-	data := "12345"
-
-	for i := 0; i < 10; i++ {
-		conn.Write([]byte(data))
-	}
-
-	log.Println("end ping...")
-
+	conn.Close()
 }
 
-func main() {
-	for i := 0; i < 20000; i++ {
-		go ping()
+func checkError(err error) {
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	time.Sleep(time.Second * 1000)
 }

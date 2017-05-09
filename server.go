@@ -11,28 +11,30 @@ import (
 	"time"
 
 	"github.com/gansidui/gotcp"
-	"github.com/gansidui/gotcp/examples/echo"
-	"github.com/tyler-chang/hubs/protocol"
+	"github.com/tyler-chang/hubs"
 )
 
 // Callback 回调
 type Callback struct{}
 
-func (this *Callback) OnConnect(c *gotcp.Conn) bool {
+// OnConnect 新用户连接回调
+func (pc *Callback) OnConnect(c *gotcp.Conn) bool {
 	addr := c.GetRawConn().RemoteAddr()
 	c.PutExtraData(addr)
 	log.Println("OnConnect:", addr)
 	return true
 }
 
-func (this *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
-	echoPacket := p.(*protocol.Packet)
-	fmt.Printf("OnMessage:[%v] [%v]\n", echoPacket.GetLength(), string(echoPacket.GetBody()))
-	c.AsyncWritePacket(echo.NewEchoPacket(echoPacket.Serialize(), true), time.Second)
+// OnMessage 接收到消息回调
+func (pc *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
+	packet := p.(*protocol.Packet)
+	fmt.Printf("OnMessage:[%v] [%v]\n", packet.GetLength(), string(packet.GetBody()))
+	c.AsyncWritePacket(protocol.NewPacket(packet.Serialize(), true), time.Second)
 	return true
 }
 
-func (this *Callback) OnClose(c *gotcp.Conn) {
+// OnClose 连接关闭回调
+func (pc *Callback) OnClose(c *gotcp.Conn) {
 	fmt.Println("OnClose:", c.GetExtraData())
 }
 
@@ -50,7 +52,7 @@ func main() {
 		PacketSendChanLimit:    20,
 		PacketReceiveChanLimit: 20,
 	}
-	srv := gotcp.NewServer(config, &Callback{}, &echo.EchoProtocol{})
+	srv := gotcp.NewServer(config, &Callback{}, &protocol.Protocol{})
 
 	// starts service
 	go srv.Start(listener, time.Second)
