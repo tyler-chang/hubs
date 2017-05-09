@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"../protocol"
 	"github.com/gansidui/gotcp"
 	"github.com/gansidui/gotcp/examples/echo"
+	"github.com/tyler-chang/hubs/protocol"
 )
 
 // Callback 回调
