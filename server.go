@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -26,7 +26,7 @@ type Callback struct{}
 func (cb *Callback) OnConnect(c *gotcp.Conn) bool {
 	addr := c.GetRawConn().RemoteAddr()
 	c.PutExtraData(addr)
-	// log.Println("OnConnect:", addr)
+	// fmt.Println("OnConnect:", addr)
 	counterChan <- 1
 	return true
 }
@@ -34,10 +34,10 @@ func (cb *Callback) OnConnect(c *gotcp.Conn) bool {
 // OnMessage 新消息事件回调
 func (cb *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
 	hp := p.(*gotcp.Hj212Packet)
-	// log.Printf("OnMessage:[%v] [%v]\n", hp.GetLength(), string(hp.GetBody()))
+	// fmt.Printf("OnMessage:[%v] [%v]\n", hp.GetLength(), string(hp.GetBody()))
 	// 检查客户端发送的消息
 	if string(hp.GetBody()) != "hello" {
-		log.Fatal("客户端发送的值错误")
+		fmt.Fatal("客户端发送的值错误")
 	}
 	c.AsyncWritePacket(gotcp.BuildPacket([]byte("world")), time.Second)
 	return true
@@ -45,7 +45,7 @@ func (cb *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
 
 // OnClose 用户连接关闭事件回调
 func (cb *Callback) OnClose(c *gotcp.Conn) {
-	// log.Println("OnClose:", c.GetExtraData())
+	// fmt.Println("OnClose:", c.GetExtraData())
 	counterChan <- -1
 }
 
@@ -61,15 +61,15 @@ func counter() {
 		onlineClients += n
 		if onlineClients > maxOnlineClients {
 			maxOnlineClients = onlineClients
-			log.Println("maxOnlineClients:", maxOnlineClients)
+			fmt.Println("maxOnlineClients:", maxOnlineClients)
 		}
-		log.Println("onlineClients:", onlineClients)
+		fmt.Println("onlineClients:", onlineClients)
 	}
 }
 
 func checkError(err error) {
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fatal(err)
 	}
 }
 
@@ -95,12 +95,12 @@ func main() {
 
 	// starts service
 	go srv.Start(listener, time.Second)
-	log.Println("listening:", listener.Addr())
+	fmt.Println("listening:", listener.Addr())
 
 	// catchs system signal
 	chSig := make(chan os.Signal)
 	signal.Notify(chSig, syscall.SIGINT, syscall.SIGTERM)
-	log.Println("Signal: ", <-chSig)
+	fmt.Println("Signal: ", <-chSig)
 
 	close(counterChan)
 	wg.Wait()
