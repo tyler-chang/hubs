@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -37,7 +38,7 @@ func (cb *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
 	// fmt.Printf("OnMessage:[%v] [%v]\n", hp.GetLength(), string(hp.GetBody()))
 	// 检查客户端发送的消息
 	if string(hp.GetBody()) != "hello" {
-		fmt.Fatal("客户端发送的值错误")
+		log.Fatal("客户端发送的值错误")
 	}
 	c.AsyncWritePacket(gotcp.BuildPacket([]byte("world")), time.Second)
 	return true
@@ -69,7 +70,7 @@ func counter() {
 
 func checkError(err error) {
 	if err != nil {
-		fmt.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
