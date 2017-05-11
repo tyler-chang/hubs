@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -10,36 +9,76 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gansidui/gotcp"
-	"github.com/tyler-chang/hubs"
+	"sync"
+
+	"github.com/tyler-chang/gotcp"
 )
 
-// Callback 回调
+var wg sync.WaitGroup
+var maxOnlineClients int
+var onlineClients int
+var counterChan chan int
+
+// Callback 事件回调对象
 type Callback struct{}
 
-// OnConnect 新用户连接回调
-func (pc *Callback) OnConnect(c *gotcp.Conn) bool {
+// OnConnect 新用户接入事件回调
+func (cb *Callback) OnConnect(c *gotcp.Conn) bool {
 	addr := c.GetRawConn().RemoteAddr()
 	c.PutExtraData(addr)
-	log.Println("OnConnect:", addr)
+	// log.Println("OnConnect:", addr)
+	counterChan <- 1
 	return true
 }
 
-// OnMessage 接收到消息回调
-func (pc *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
-	packet := p.(*protocol.Packet)
-	fmt.Printf("OnMessage:[%v] [%v]\n", packet.GetLength(), string(packet.GetBody()))
-	c.AsyncWritePacket(protocol.NewPacket(packet.Serialize(), true), time.Second)
+// OnMessage 新消息事件回调
+func (cb *Callback) OnMessage(c *gotcp.Conn, p gotcp.Packet) bool {
+	hp := p.(*gotcp.Hj212Packet)
+	// log.Printf("OnMessage:[%v] [%v]\n", hp.GetLength(), string(hp.GetBody()))
+	// 检查客户端发送的消息
+	if string(hp.GetBody()) != "hello" {
+		log.Fatal("客户端发送的值错误")
+	}
+	c.AsyncWritePacket(gotcp.BuildPacket([]byte("world")), time.Second)
 	return true
 }
 
-// OnClose 连接关闭回调
-func (pc *Callback) OnClose(c *gotcp.Conn) {
-	fmt.Println("OnClose:", c.GetExtraData())
+// OnClose 用户连接关闭事件回调
+func (cb *Callback) OnClose(c *gotcp.Conn) {
+	// log.Println("OnClose:", c.GetExtraData())
+	counterChan <- -1
+}
+
+func counter() {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		n, ok := <-counterChan
+		if ok == false {
+			return
+		}
+		onlineClients += n
+		if onlineClients > maxOnlineClients {
+			maxOnlineClients = onlineClients
+			log.Println("maxOnlineClients:", maxOnlineClients)
+		}
+		log.Println("onlineClients:", onlineClients)
+	}
+}
+
+func checkError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	counterChan = make(chan int)
+
+	go counter()
 
 	// creates a tcp listener
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", ":8989")
@@ -52,23 +91,20 @@ func main() {
 		PacketSendChanLimit:    20,
 		PacketReceiveChanLimit: 20,
 	}
-	srv := gotcp.NewServer(config, &Callback{}, &protocol.Protocol{})
+	srv := gotcp.NewServer(config, &Callback{}, &gotcp.Hj212Protocol{})
 
 	// starts service
 	go srv.Start(listener, time.Second)
-	fmt.Println("listening:", listener.Addr())
+	log.Println("listening:", listener.Addr())
 
 	// catchs system signal
 	chSig := make(chan os.Signal)
 	signal.Notify(chSig, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Println("Signal: ", <-chSig)
+	log.Println("Signal: ", <-chSig)
+
+	close(counterChan)
+	wg.Wait()
 
 	// stops service
 	srv.Stop()
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }
