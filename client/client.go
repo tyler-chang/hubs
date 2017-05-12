@@ -2,15 +2,15 @@ package main
 
 import (
 	"errors"
-	"log"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
-	"sync"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/tyler-chang/gotcp"
 )
 
@@ -19,13 +19,17 @@ var exitChan chan struct{}
 
 func client() {
 	wg.Add(1)
-	defer wg.Done()
 
+	// tcpAddr, err := net.ResolveTCPAddr("tcp4", "114.215.143.189:8989")
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:8989")
 	checkError(err)
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	checkError(err)
-	defer conn.Close()
+
+	defer func() {
+		conn.Close()
+		wg.Done()
+	}()
 
 	protocol := &gotcp.Hj212Protocol{}
 	// ping <--> pong
@@ -65,9 +69,10 @@ func main() {
 	wg = sync.WaitGroup{}
 	exitChan = make(chan struct{})
 
-	for i := 0; i < 60000; i++ {
+	for i := 0; i < 10000; i++ {
 		go client()
 		time.Sleep(time.Millisecond * 2)
+		fmt.Println("connect count: ", i)
 	}
 
 	// catchs system signal
